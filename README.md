@@ -1,157 +1,38 @@
-# MeetMind — AI Meeting Intelligence System
+# 🧠 MeetMind — AI Meeting Intelligence System
 
-> ET AI Hackathon 2026 | Problem Statement 2: Agentic AI for Autonomous Enterprise Workflows
-
-MeetMind transforms any meeting transcript into a fully managed action system.
-Paste a transcript → 8 AI agents run in sequence → tasks extracted, owners assigned,
-dependencies mapped, SLA risks scored, escalations generated, and a full audit trail written.
-Zero manual follow-up required.
+> ET AI Hackathon 2026 · Problem Statement 2: Agentic AI for Autonomous Enterprise Workflows
 
 ---
 
-## The Problem
+## What is MeetMind?
 
-Enterprise teams lose an estimated 15–30% of meeting value to poor follow-up.
-Action items get forgotten, owners are unclear, blockers go undetected until it's too late.
-The average knowledge worker spends 4.75 hours per week just tracking meeting outcomes.
-
-## The Solution
-
-MeetMind deploys 8 specialized AI agents that work in a coordinated pipeline:
-
-| Agent | Role |
-|---|---|
-| Parser | Extracts all action items from raw transcript |
-| Sentiment Analyser | Detects hidden blockers — frustration, confusion, overload |
-| Task Assigner | Confirms owners, converts vague deadlines to ISO dates |
-| Dependency Mapper | Identifies which tasks block other tasks |
-| Progress Tracker | Monitors status, marks overdue tasks as stalled |
-| SLA Monitor | Predicts breach risk 0.0–1.0 per task |
-| Escalator | Generates professional escalation messages for at-risk tasks |
-| Summariser | Produces decisions, risks, and next agenda |
-
----
-
-## Architecture
-```
-Meeting Transcript
-       │
-       ▼
-┌─────────────────────────────────┐
-│         Master Orchestrator      │
-│  sequences all 8 agents,        │
-│  handles failures, writes audit  │
-└─────────────────────────────────┘
-       │
-       ├── Layer 1 (parallel)
-       │   ├── Parser Agent
-       │   └── Sentiment Agent
-       │
-       ├── Layer 2 (sequential)
-       │   ├── Assigner Agent
-       │   └── Dependency Agent
-       │
-       ├── Layer 3 (parallel)
-       │   ├── Tracker Agent
-       │   └── SLA Monitor
-       │
-       └── Layer 4 (sequential)
-           ├── Escalator Agent
-           └── Summariser Agent
-                │
-                ▼
-         SQLite Database
-         (tasks, alerts, audit log)
-                │
-                ▼
-         React Frontend
-         (dashboard, dependency graph,
-          audit trail, ROI calculator)
-```
+MeetMind transforms unstructured meeting transcripts into structured, actionable intelligence using a pipeline of 8 specialized AI agents. Paste a transcript → 8 agents run autonomously → get tasks, dependencies, sentiment analysis, alerts, summary, and ROI in seconds.
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Backend | Python 3.10, FastAPI, uvicorn |
-| AI | Google Gemini 2.5 Flash |
-| Database | SQLite (via Python built-in sqlite3) |
-| Frontend | React 18, Vite, Tailwind CSS |
-| Graphs | React Flow (dependency visualisation) |
-| Charts | Recharts (ROI calculator) |
+| Layer | Technologies |
+|-------|-------------|
+| Backend | Python · FastAPI · SQLite · Google Gemini 1.5 Flash |
+| Frontend | React 18 · Vite · Tailwind CSS · React Flow · Recharts |
 
 ---
 
-## Setup Instructions
+## The 8-Agent Pipeline
 
-### Prerequisites
-- Python 3.10+
-- Node.js 18+
-- Google Gemini API key (free tier) from https://aistudio.google.com/app/apikey
+| Agent | What it does |
+|-------|-------------|
+| ParserAgent | Extracts all tasks and action items from transcript |
+| SentimentAgent | Detects frustration, confusion, blockers |
+| AssignerAgent | Refines ownership and converts vague deadlines to ISO dates |
+| DependencyAgent | Maps which tasks block other tasks |
+| TrackerAgent | Marks overdue tasks as stalled |
+| SLAMonitor | Computes risk scores (0.0–1.0) per task |
+| EscalatorAgent | Generates escalation alerts for at-risk tasks |
+| SummariserAgent | Writes full meeting summary + next agenda |
 
-### Backend
-```bash
-git clone https://github.com/your-username/meetmind.git
-cd meetmind
-
-# Create .env file
-echo GEMINI_API_KEY=your_key_here > .env
-
-# Install dependencies
-python -m pip install fastapi uvicorn[standard] google-genai python-dotenv pydantic python-multipart
-
-# Start server
-py -3.10 -m uvicorn backend.main:app --reload --port 8000
-```
-
-Backend runs at: http://localhost:8000
-API docs at: http://localhost:8000/docs
-
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Frontend runs at: http://localhost:5173
-
----
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/analyze` | Run full 8-agent pipeline on transcript |
-| GET | `/tasks` | Get all tasks |
-| PATCH | `/tasks/{id}/status` | Update task status |
-| GET | `/alerts` | Get all escalation alerts |
-| GET | `/audit` | Get full agent audit trail |
-| GET | `/health` | Health check |
-
----
-
-## Demo
-
-Use this sample request body at `POST /analyze`:
-```json
-{
-  "transcript": "...",
-  "attendees": ["Alice", "Bob", "Carol", "David", "Sara"],
-  "meeting_duration_mins": 52,
-  "meeting_title": "Q3 Product & Engineering Sync"
-}
-```
-
-Expected output:
-- 9 tasks extracted with owners and ISO deadlines
-- 14 sentiment flags detected
-- 4 task dependencies mapped
-- 1 escalation alert generated
-- Full audit trail with all 8 agents showing success
-- ROI: ₹3,520 saved per meeting
+Layers 1 and 3 run in parallel using `asyncio.gather()`.
 
 ---
 
@@ -159,38 +40,156 @@ Expected output:
 ```
 meetmind/
 ├── backend/
-│   ├── main.py              # FastAPI app, all routes
-│   ├── orchestrator.py      # Master pipeline sequencer
-│   ├── llm.py               # Gemini client wrapper
-│   ├── database.py          # SQLite helpers
-│   ├── models.py            # Pydantic data models
-│   ├── config.py            # Environment config
-│   └── agents/
-│       ├── parser.py        # Agent 1: Extract tasks
-│       ├── sentiment.py     # Agent 2: Detect sentiment
-│       ├── assigner.py      # Agent 3: Refine assignments
-│       ├── dependency.py    # Agent 4: Map dependencies
-│       ├── tracker.py       # Agent 5: Monitor progress
-│       ├── sla_monitor.py   # Agent 6: Predict SLA breach
-│       ├── escalator.py     # Agent 7: Generate alerts
-│       └── summariser.py    # Agent 8: Write summary
-└── frontend/
-    └── src/
-        ├── pages/
-        │   ├── UploadPage.jsx
-        │   ├── DashboardPage.jsx
-        │   ├── DependencyPage.jsx
-        │   ├── AuditPage.jsx
-        │   └── SummaryPage.jsx
-        └── components/
-            ├── TaskBoard.jsx
-            ├── DependencyGraph.jsx
-            ├── AuditTable.jsx
-            └── ROICalculator.jsx
+│   ├── main.py            ← FastAPI routes
+│   ├── models.py          ← Pydantic models
+│   ├── database.py        ← SQLite async helpers
+│   ├── orchestrator.py    ← 4-layer agent pipeline
+│   ├── llm.py             ← Gemini wrapper
+│   ├── config.py          ← Env vars
+│   └── agents/            ← 8 agent files
+├── frontend/
+│   ├── src/
+│   │   ├── api/client.js  ← All Axios calls
+│   │   ├── context/       ← React shared state
+│   │   ├── pages/         ← 5 pages
+│   │   └── components/    ← UI components
+│   └── .env
+└── meetmind.db            ← Auto-created on first run
 ```
 
 ---
 
-## Team
+## Setup & Installation
 
-Built for ET AI Hackathon 2026 — Problem Statement 2.
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- Google Gemini API key (free at aistudio.google.com)
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/your-username/meetmind.git
+cd meetmind
+```
+
+### 2. Backend setup
+```bash
+# Install Python dependencies
+pip install -r backend/requirements.txt
+
+# Create backend/.env
+GEMINI_API_KEY=your_key_here
+
+# Start backend (from meetmind/ root)
+python -m uvicorn backend.main:app --reload
+# Runs at http://localhost:8000
+```
+
+### 3. Frontend setup
+```bash
+cd frontend
+npm install
+npm run dev
+# Runs at http://localhost:5173
+```
+
+> ⚠️ Both servers must run simultaneously. Use two terminal windows.
+
+---
+
+## Running the App
+
+Open `http://localhost:5173` in your browser.
+
+1. Click **Load Demo** to auto-fill the sample transcript
+2. Click **Analyse Meeting** — watch 8 agents run
+3. Navigate to **Dashboard** — Kanban board, alerts, sentiment
+4. Navigate to **Dependencies** — React Flow visual graph
+5. Navigate to **Audit** — full agent pipeline log
+6. Navigate to **Summary** — decisions, risks, ROI calculator
+
+---
+
+## API Reference
+
+Base URL: `http://localhost:8000`
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| POST | `/analyze` | Run full 8-agent pipeline |
+| GET | `/tasks` | Get all tasks |
+| PATCH | `/tasks/{id}/status` | Update task status |
+| GET | `/alerts` | Get all alerts |
+| GET | `/audit` | Get agent audit log |
+| POST | `/workspace/create` | Create team workspace |
+| POST | `/workspace/join` | Join workspace with invite code |
+| GET | `/workspace/{code}/tasks/mine` | Get member's own tasks |
+
+---
+
+## Frontend Pages
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | Upload | GPT-style transcript input with agent progress animation |
+| `/dashboard` | Dashboard | Kanban board, metric cards, alerts, sentiment |
+| `/dependencies` | Graph | React Flow dependency visualization |
+| `/audit` | Audit | Full agent pipeline execution log |
+| `/summary` | Summary | Meeting insights + live ROI calculator |
+
+---
+
+## Team Workspace Feature
+
+- Admin creates a workspace → receives a 6-digit invite code
+- Team members join using the code + their name
+- Admin uploads transcript → all members see shared dashboard
+- Each member has a personal **My Tasks** view with their own tasks
+- Mark Complete button syncs with the main dashboard in real time
+
+---
+
+## Environment Variables
+
+**`backend/.env`**
+```
+GEMINI_API_KEY=your_gemini_api_key_here
+```
+
+**`frontend/.env`**
+```
+VITE_API_BASE=http://localhost:8000
+```
+
+---
+
+## Demo Transcript
+
+Use this for testing:
+```
+Meeting: Q3 Product Planning
+Attendees: Alice, Bob, Carol, David
+
+Alice: Bob, can you own the API rate limiting fix? Critical before the investor demo on the 15th.
+Bob: Sure, I'll have it done by Friday.
+Alice: Carol, we need onboarding flow designs by next Wednesday.
+Carol: I'm confused about the scope — are we redesigning the whole flow?
+Alice: Just the first three screens.
+David: The rate limiting depends on my auth service refactor. Bob can't start until I'm done.
+Alice: That's a risk. David, please send a written update on your timeline by tomorrow.
+```
+
+---
+
+## Built With
+
+- **Google Gemini 1.5 Flash** — powers all 8 agents
+- **FastAPI** — async Python backend
+- **React Flow** — dependency graph visualization
+- **SQLite** — zero-config persistence
+- **Tailwind CSS** — styling
+
+---
+
+*MeetMind — because every meeting deserves a second brain.*
