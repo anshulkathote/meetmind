@@ -35,7 +35,11 @@ Output format:
 }
 """
 
-async def run_parser(transcript: str, attendees: list[str]) -> tuple[list[Task], AuditEntry]:
+async def run_parser(
+    transcript: str,
+    attendees: list[str],
+    workspace_id: int = 1
+) -> tuple[list[Task], AuditEntry]:
     audit = AuditEntry(
         agent_name    = "ParserAgent",
         action        = "extract_tasks",
@@ -45,10 +49,9 @@ async def run_parser(transcript: str, attendees: list[str]) -> tuple[list[Task],
     )
     try:
         user_content = f"ATTENDEES: {', '.join(attendees)}\n\nTRANSCRIPT:\n{transcript}"
-        raw  = await call_llm(PARSER_PROMPT, user_content)
-        data = json.loads(raw)
+        raw       = await call_llm(PARSER_PROMPT, user_content)
+        data      = json.loads(raw)
         raw_tasks = data.get("tasks", [])
-
         tasks = []
         for t in raw_tasks:
             task = Task(
@@ -60,16 +63,14 @@ async def run_parser(transcript: str, attendees: list[str]) -> tuple[list[Task],
                 status     = TaskStatus.TODO,
                 created_at = datetime.utcnow().isoformat()
             )
-            task_id  = await insert_task(task)
-            task.id  = task_id
+            task_id = await insert_task(task, workspace_id)
+            task.id = task_id
             tasks.append(task)
-
         audit.output_summary = f"Extracted {len(tasks)} tasks"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return tasks, audit
-
     except Exception as e:
-        audit.status        = "error"
-        audit.output_summary= f"Error: {str(e)}"
-        await insert_audit(audit)
+        audit.status         = "error"
+        audit.output_summary = f"Error: {str(e)}"
+        await insert_audit(audit, workspace_id)
         return [], audit

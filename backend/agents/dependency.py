@@ -30,13 +30,11 @@ Output format:
 }
 """
 
-
 def _save_dependencies_sync(edges: list[DependencyEdge]) -> None:
     conn = sqlite3.connect(DB_PATH)
     for edge in edges:
         row = conn.execute(
-            "SELECT dependencies FROM tasks WHERE id=?",
-            (edge.to_task_id,)
+            "SELECT dependencies FROM tasks WHERE id=?", (edge.to_task_id,)
         ).fetchone()
         if row:
             existing = json.loads(row[0] or "[]")
@@ -49,11 +47,10 @@ def _save_dependencies_sync(edges: list[DependencyEdge]) -> None:
     conn.commit()
     conn.close()
 
-
 async def run_dependency(
-    tasks: list[Task]
+    tasks: list[Task],
+    workspace_id: int = 1
 ) -> tuple[list[DependencyEdge], AuditEntry]:
-
     audit = AuditEntry(
         agent_name    = "DependencyAgent",
         action        = "map_dependencies",
@@ -61,54 +58,37 @@ async def run_dependency(
         output_summary= "",
         status        = "success"
     )
-
     if len(tasks) < 2:
         audit.output_summary = "Not enough tasks for dependency analysis"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return [], audit
-
     try:
         tasks_json = json.dumps([
-            {
-                "id"         : t.id,
-                "title"      : t.title,
-                "description": t.description
-            }
+            {"id": t.id, "title": t.title, "description": t.description}
             for t in tasks
         ])
-
-        raw  = await call_llm(DEPENDENCY_PROMPT, f"TASKS:\n{tasks_json}")
-        data = json.loads(raw)
-
+        raw      = await call_llm(DEPENDENCY_PROMPT, f"TASKS:\n{tasks_json}")
+        data     = json.loads(raw)
         task_ids = {t.id for t in tasks}
         edges    = []
-
         for d in data.get("dependencies", []):
             from_id = d.get("from_task_id")
             to_id   = d.get("to_task_id")
-
-            # Skip invalid or self-referencing edges
             if from_id not in task_ids or to_id not in task_ids:
                 continue
             if from_id == to_id:
                 continue
-
             edges.append(DependencyEdge(
-                from_task_id = from_id,
-                to_task_id   = to_id,
-                reason       = d.get("reason", "")
+                from_task_id=from_id, to_task_id=to_id,
+                reason=d.get("reason", "")
             ))
-
-        # Save to DB in thread
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, _save_dependencies_sync, edges)
-
         audit.output_summary = f"Found {len(edges)} dependencies"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return edges, audit
-
     except Exception as e:
         audit.status         = "error"
         audit.output_summary = f"Error: {str(e)}"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return [], audit

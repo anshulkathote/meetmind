@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMeeting } from '../context/MeetingContext'
+import { useWorkspace } from '../context/WorkspaceContext'
 import { getTasks, getAlerts } from '../api/client'
 import TaskBoard from '../components/TaskBoard'
 import AlertBanner from '../components/AlertBanner'
@@ -7,18 +8,21 @@ import SentimentPanel from '../components/SentimentPanel'
 
 export default function DashboardPage() {
   const { analysisResult, setAnalysisResult, refreshTasks } = useMeeting()
+  const { workspace } = useWorkspace()
   const [alerts,  setAlerts]  = useState(analysisResult?.alerts || [])
   const [offline, setOffline] = useState(false)
 
   useEffect(() => {
     async function init() {
       if (analysisResult) {
-        // Always pull fresh task statuses from DB on every mount
         await refreshTasks()
         setAlerts(analysisResult.alerts || [])
       } else {
         try {
-          const [t, a] = await Promise.all([getTasks(), getAlerts()])
+          const [t, a] = await Promise.all([
+            getTasks(workspace?.id || 1),
+            getAlerts(workspace?.id || 1)
+          ])
           setAlerts(a.data)
           setAnalysisResult({
             tasks           : t.data,
@@ -37,7 +41,6 @@ export default function DashboardPage() {
     init()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Always read directly from context — updates automatically when refreshTasks fires
   const tasks        = analysisResult?.tasks           || []
   const sentiment    = analysisResult?.sentiment_flags || []
   const highPriority = tasks.filter(t => t.priority   === 'high').length
@@ -89,7 +92,6 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Metric Cards */}
       <div style={{
         display             : 'grid',
         gridTemplateColumns : 'repeat(4, 1fr)',
@@ -120,7 +122,6 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* Task Board — key={tasks} forces re-render when task list changes */}
       <div style={{ marginBottom: '2rem' }}>
         <TaskBoard
           key={tasks.map(t => `${t.id}-${t.status}`).join(',')}

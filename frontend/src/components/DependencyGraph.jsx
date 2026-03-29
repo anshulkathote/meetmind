@@ -6,6 +6,7 @@ import ReactFlow, {
   useEdgesState,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
+import { useEffect } from 'react'
 
 const statusColor = {
   done:        '#4ade80',
@@ -15,8 +16,8 @@ const statusColor = {
 }
 
 function buildLayout(tasks, dependencies) {
-  // Simple grid layout
-  const COLS = 3
+  // Simple grid layout — identical to original
+  const COLS  = 3
   const X_GAP = 280
   const Y_GAP = 160
 
@@ -80,9 +81,15 @@ function buildLayout(tasks, dependencies) {
 }
 
 export default function DependencyGraph({ tasks, dependencies }) {
-  const { nodes: initNodes, edges: initEdges } = buildLayout(tasks, dependencies)
-  const [nodes, , onNodesChange] = useNodesState(initNodes)
-  const [edges, , onEdgesChange] = useEdgesState(initEdges)
+  const [nodes, setNodes, onNodesChange] = useNodesState([])
+  const [edges, setEdges, onEdgesChange] = useEdgesState([])
+
+  // useEffect so async-loaded data (member fetch) correctly updates the graph
+  useEffect(() => {
+    const { nodes: n, edges: e } = buildLayout(tasks, dependencies)
+    setNodes(n)
+    setEdges(e)
+  }, [tasks, dependencies])
 
   return (
     <div style={{ width: '100%', height: '100%' }}>

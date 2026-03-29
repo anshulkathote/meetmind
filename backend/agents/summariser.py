@@ -22,15 +22,13 @@ Output format:
 async def run_summariser(
     transcript: str,
     tasks: list[Task],
-    sentiment_flags: list[SentimentFlag]
+    sentiment_flags: list[SentimentFlag],
+    workspace_id: int = 1
 ) -> tuple[MeetingSummary, AuditEntry]:
-
     audit = AuditEntry(
-        agent_name    = "SummariserAgent",
-        action        = "generate_summary",
-        input_summary = f"{len(tasks)} tasks, {len(sentiment_flags)} sentiment flags",
-        output_summary= "",
-        status        = "success"
+        agent_name="SummariserAgent", action="generate_summary",
+        input_summary=f"{len(tasks)} tasks, {len(sentiment_flags)} sentiment flags",
+        output_summary="", status="success"
     )
     try:
         tasks_text = "\n".join(
@@ -41,7 +39,6 @@ async def run_summariser(
             f"- [{f.risk_level}] {f.sentiment} on '{f.topic}': \"{f.quote}\""
             for f in sentiment_flags
         ) or "None detected"
-
         user_content = (
             f"TRANSCRIPT:\n{transcript}\n\n"
             f"TASKS:\n{tasks_text}\n\n"
@@ -49,7 +46,6 @@ async def run_summariser(
         )
         raw  = await call_llm(SUMMARY_PROMPT, user_content)
         data = json.loads(raw)
-
         summary = MeetingSummary(
             decisions_made      = data.get("decisions_made", []),
             open_action_items   = data.get("open_action_items", []),
@@ -60,13 +56,12 @@ async def run_summariser(
             high_priority_count = sum(1 for t in tasks if t.priority == "high")
         )
         audit.output_summary = f"{len(summary.decisions_made)} decisions, {len(summary.key_risks)} risks"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return summary, audit
-
     except Exception as e:
-        audit.status        = "error"
-        audit.output_summary= f"Error: {str(e)}"
-        await insert_audit(audit)
+        audit.status         = "error"
+        audit.output_summary = f"Error: {str(e)}"
+        await insert_audit(audit, workspace_id)
         return MeetingSummary(
             decisions_made=[], open_action_items=[t.title for t in tasks],
             key_risks=[], next_meeting_agenda=[],

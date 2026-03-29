@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { analyzeMeeting } from '../api/client'
 import { useMeeting } from '../context/MeetingContext'
+import { useWorkspace } from '../context/WorkspaceContext'
 
 const AGENTS = [
   { name: 'Parser Agent',       desc: 'Extracting tasks and action items...' },
@@ -38,8 +39,9 @@ All: Yes.
 Alice: Okay let's reconvene Thursday to check on David's progress.`
 
 export default function UploadPage() {
-  const navigate = useNavigate()
+  const navigate             = useNavigate()
   const { setAnalysisResult } = useMeeting()
+  const { workspace }        = useWorkspace()
 
   const [transcript, setTranscript] = useState('')
   const [title,      setTitle]      = useState('')
@@ -57,11 +59,8 @@ export default function UploadPage() {
     setError(null)
     setLoading(true)
     setAgentStep(0)
-
-    // ── Fix: clear old analysis immediately so stale data never shows ──
     setAnalysisResult(null)
 
-    // Fake agent progress stepper
     let step = 0
     const interval = setInterval(() => {
       step++
@@ -75,11 +74,12 @@ export default function UploadPage() {
         attendees            : attendees.split(',').map(a => a.trim()).filter(Boolean),
         meeting_duration_mins: Number(duration),
         meeting_title        : title,
+        workspace_id         : workspace?.id || 1,
       }
       const res = await analyzeMeeting(payload)
       clearInterval(interval)
       setAgentStep(AGENTS.length)
-      setAnalysisResult(res.data)   // fully replaces — no merge with old data
+      setAnalysisResult(res.data)
       setTimeout(() => navigate('/dashboard'), 800)
     } catch (err) {
       clearInterval(interval)
@@ -96,9 +96,12 @@ export default function UploadPage() {
 
         <div style={{ textAlign: 'center', marginBottom: '2.5rem', paddingTop: '1rem' }}>
           <h1 style={{
-            fontFamily: 'Syne, sans-serif', fontWeight: 800,
-            fontSize: '2.4rem', color: 'var(--text-primary)',
-            letterSpacing: '-1px', marginBottom: '0.5rem',
+            fontFamily   : 'Syne, sans-serif',
+            fontWeight   : 800,
+            fontSize     : '2.4rem',
+            color        : 'var(--text-primary)',
+            letterSpacing: '-1px',
+            marginBottom : '0.5rem',
           }}>
             Analyze Your <span style={{ color: 'var(--accent)' }}>Meeting</span>
           </h1>
@@ -134,7 +137,9 @@ export default function UploadPage() {
             <div>
               <label style={labelStyle}>Duration (mins)</label>
               <input
-                type="number" value={duration} min={1}
+                type="number"
+                value={duration}
+                min={1}
                 onChange={e => setDuration(e.target.value)}
                 style={inputStyle}
               />
@@ -152,10 +157,14 @@ export default function UploadPage() {
                   setDuration(45)
                 }}
                 style={{
-                  background: 'transparent', border: '1px solid var(--border)',
-                  color: 'var(--accent)', padding: '0.25rem 0.75rem',
-                  borderRadius: '6px', fontSize: '0.78rem',
-                  cursor: 'pointer', fontFamily: 'DM Sans, sans-serif',
+                  background  : 'transparent',
+                  border      : '1px solid var(--border)',
+                  color       : 'var(--accent)',
+                  padding     : '0.25rem 0.75rem',
+                  borderRadius: '6px',
+                  fontSize    : '0.78rem',
+                  cursor      : 'pointer',
+                  fontFamily  : 'DM Sans, sans-serif',
                 }}
               >
                 Load Demo
@@ -167,18 +176,24 @@ export default function UploadPage() {
               placeholder="Paste your full meeting transcript here..."
               rows={14}
               style={{
-                ...inputStyle, resize: 'vertical',
+                ...inputStyle,
+                resize    : 'vertical',
                 fontFamily: 'JetBrains Mono, monospace',
-                fontSize: '0.82rem', lineHeight: '1.6',
+                fontSize  : '0.82rem',
+                lineHeight: '1.6',
               }}
             />
           </div>
 
           {error && (
             <div style={{
-              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-              color: '#f87171', padding: '0.75rem 1rem', borderRadius: '8px',
-              marginBottom: '1.25rem', fontSize: '0.9rem',
+              background  : 'rgba(239,68,68,0.1)',
+              border      : '1px solid rgba(239,68,68,0.3)',
+              color       : '#f87171',
+              padding     : '0.75rem 1rem',
+              borderRadius: '8px',
+              marginBottom: '1.25rem',
+              fontSize    : '0.9rem',
             }}>
               {error}
             </div>
@@ -188,13 +203,18 @@ export default function UploadPage() {
             onClick={handleAnalyze}
             disabled={loading}
             style={{
-              width: '100%', padding: '0.9rem',
-              background : loading ? 'var(--bg-card)' : 'var(--accent)',
-              color      : loading ? 'var(--text-muted)' : '#fff',
-              border: 'none', borderRadius: '10px',
-              fontFamily: 'Syne, sans-serif', fontWeight: 700,
-              fontSize: '1rem', cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s', letterSpacing: '0.3px',
+              width       : '100%',
+              padding     : '0.9rem',
+              background  : loading ? 'var(--bg-card)' : 'var(--accent)',
+              color       : loading ? 'var(--text-muted)' : '#fff',
+              border      : 'none',
+              borderRadius: '10px',
+              fontFamily  : 'Syne, sans-serif',
+              fontWeight  : 700,
+              fontSize    : '1rem',
+              cursor      : loading ? 'not-allowed' : 'pointer',
+              transition  : 'all 0.2s',
+              letterSpacing: '0.3px',
             }}
           >
             {loading ? 'Analyzing...' : 'Analyze Meeting'}
@@ -204,9 +224,13 @@ export default function UploadPage() {
         {loading && (
           <div className="glow-card" style={{ padding: '1.5rem' }}>
             <p style={{
-              fontFamily: 'Syne, sans-serif', fontWeight: 700,
-              fontSize: '0.9rem', color: 'var(--accent)',
-              marginBottom: '1.25rem', textTransform: 'uppercase', letterSpacing: '1px',
+              fontFamily   : 'Syne, sans-serif',
+              fontWeight   : 700,
+              fontSize     : '0.9rem',
+              color        : 'var(--accent)',
+              marginBottom : '1.25rem',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
             }}>
               Running AI Pipeline
             </p>
@@ -217,26 +241,36 @@ export default function UploadPage() {
                 const pending = i > agentStep
                 return (
                   <div key={i} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.75rem',
-                    padding: '0.6rem 0.75rem', borderRadius: '8px',
-                    background: active ? 'rgba(14,165,233,0.08)' : 'transparent',
-                    border: active ? '1px solid rgba(14,165,233,0.2)' : '1px solid transparent',
-                    transition: 'all 0.3s', opacity: pending ? 0.35 : 1,
+                    display    : 'flex',
+                    alignItems : 'center',
+                    gap        : '0.75rem',
+                    padding    : '0.6rem 0.75rem',
+                    borderRadius: '8px',
+                    background : active ? 'rgba(14,165,233,0.08)' : 'transparent',
+                    border     : active ? '1px solid rgba(14,165,233,0.2)' : '1px solid transparent',
+                    transition : 'all 0.3s',
+                    opacity    : pending ? 0.35 : 1,
                   }}>
                     <div style={{
-                      width: '22px', height: '22px', borderRadius: '50%',
-                      background: done ? 'rgba(34,197,94,0.2)' : active ? 'rgba(14,165,233,0.2)' : 'var(--bg-card)',
-                      border: done ? '1px solid #4ade80' : active ? '1px solid var(--accent)' : '1px solid var(--border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '0.7rem', flexShrink: 0,
+                      width      : '22px',
+                      height     : '22px',
+                      borderRadius: '50%',
+                      background : done ? 'rgba(34,197,94,0.2)' : active ? 'rgba(14,165,233,0.2)' : 'var(--bg-card)',
+                      border     : done ? '1px solid #4ade80' : active ? '1px solid var(--accent)' : '1px solid var(--border)',
+                      display    : 'flex',
+                      alignItems : 'center',
+                      justifyContent: 'center',
+                      fontSize   : '0.7rem',
+                      flexShrink : 0,
                     }}>
                       {done ? '✓' : active ? '●' : '○'}
                     </div>
                     <div>
                       <div style={{
-                        fontFamily: 'DM Sans, sans-serif', fontWeight: 600,
-                        fontSize: '0.875rem',
-                        color: done ? '#4ade80' : active ? 'var(--accent)' : 'var(--text-muted)',
+                        fontFamily: 'DM Sans, sans-serif',
+                        fontWeight: 600,
+                        fontSize  : '0.875rem',
+                        color     : done ? '#4ade80' : active ? 'var(--accent)' : 'var(--text-muted)',
                       }}>
                         {agent.name}
                       </div>
@@ -259,17 +293,26 @@ export default function UploadPage() {
 }
 
 const labelStyle = {
-  display: 'block', fontFamily: 'DM Sans, sans-serif',
-  fontWeight: 600, fontSize: '0.85rem',
-  color: 'var(--text-muted)', marginBottom: '0.5rem',
-  textTransform: 'uppercase', letterSpacing: '0.5px',
+  display      : 'block',
+  fontFamily   : 'DM Sans, sans-serif',
+  fontWeight   : 600,
+  fontSize     : '0.85rem',
+  color        : 'var(--text-muted)',
+  marginBottom : '0.5rem',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
 }
 
 const inputStyle = {
-  width: '100%', background: 'var(--bg-secondary)',
-  border: '1px solid var(--border)', borderRadius: '8px',
-  padding: '0.7rem 0.9rem', color: 'var(--text-primary)',
-  fontFamily: 'DM Sans, sans-serif', fontSize: '0.95rem',
-  outline: 'none', transition: 'border-color 0.2s',
-  boxSizing: 'border-box',
+  width       : '100%',
+  background  : 'var(--bg-secondary)',
+  border      : '1px solid var(--border)',
+  borderRadius: '8px',
+  padding     : '0.7rem 0.9rem',
+  color       : 'var(--text-primary)',
+  fontFamily  : 'DM Sans, sans-serif',
+  fontSize    : '0.95rem',
+  outline     : 'none',
+  transition  : 'border-color 0.2s',
+  boxSizing   : 'border-box',
 }

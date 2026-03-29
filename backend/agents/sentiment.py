@@ -14,11 +14,6 @@ For each flag return:
 - quote: the exact line or phrase from transcript (max 20 words)
 - risk_level: "low", "medium", "high"
 
-Risk level guide:
-- high: strong disagreement, someone refusing, deadline pressure causing stress
-- medium: confusion about ownership, unclear requirements, mild pushback
-- low: minor hesitation, a question without answer
-
 Return ONLY valid JSON, no markdown.
 
 Output format:
@@ -35,7 +30,10 @@ Output format:
 }
 """
 
-async def run_sentiment(transcript: str) -> tuple[list[SentimentFlag], AuditEntry]:
+async def run_sentiment(
+    transcript: str,
+    workspace_id: int = 1
+) -> tuple[list[SentimentFlag], AuditEntry]:
     audit = AuditEntry(
         agent_name    = "SentimentAgent",
         action        = "analyse_sentiment",
@@ -57,11 +55,10 @@ async def run_sentiment(transcript: str) -> tuple[list[SentimentFlag], AuditEntr
             for f in data.get("flags", [])
         ]
         audit.output_summary = f"Detected {len(flags)} sentiment flags"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return flags, audit
-
     except Exception as e:
-        audit.status        = "error"
-        audit.output_summary= f"Error: {str(e)}"
-        await insert_audit(audit)
+        audit.status         = "error"
+        audit.output_summary = f"Error: {str(e)}"
+        await insert_audit(audit, workspace_id)
         return [], audit

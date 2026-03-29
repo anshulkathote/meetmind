@@ -1,27 +1,40 @@
 import { useMeeting } from '../context/MeetingContext'
+import { useWorkspace } from '../context/WorkspaceContext'
 import { getAudit } from '../api/client'
 import { useEffect, useState } from 'react'
 import AuditTable from '../components/AuditTable'
 
 export default function AuditPage() {
   const { analysisResult } = useMeeting()
+  const { workspace } = useWorkspace()
   const [entries, setEntries] = useState([])
   const [loading, setLoading] = useState(true)
+  const [error,   setError]   = useState(null)
 
   useEffect(() => {
-    if (analysisResult?.audit_entries) {
-      setEntries(analysisResult.audit_entries)
-      setLoading(false)
-    } else {
-      getAudit()
-        .then(r => { setEntries(r.data); setLoading(false) })
-        .catch(() => setLoading(false))
+    async function load() {
+      // If we have fresh in-memory results (admin just analyzed), use them
+      if (analysisResult?.audit_entries?.length > 0) {
+        setEntries(analysisResult.audit_entries)
+        setLoading(false)
+        return
+      }
+      // Otherwise fetch from DB — works for members and returning admins
+      try {
+        const workspaceId = workspace?.id || 1
+        const r = await getAudit(workspaceId)
+        setEntries(r.data)
+      } catch {
+        setError('Could not load audit trail. Make sure the backend is running.')
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [analysisResult])
+    load()
+  }, [analysisResult, workspace])
 
   return (
     <div className="page">
-      {/* Header */}
       <div style={{ marginBottom: '2rem' }}>
         <h1 style={{
           fontFamily: 'Syne', fontWeight: 800, fontSize: '1.8rem',
@@ -34,14 +47,13 @@ export default function AuditPage() {
         </p>
       </div>
 
-      {/* Stats Row */}
       {entries.length > 0 && (
         <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           {[
-            { label: 'Total Actions', value: entries.length,                                          color: '#38bdf8' },
-            { label: 'Successful',    value: entries.filter(e => e.status === 'success').length,      color: '#4ade80' },
-            { label: 'Errors',        value: entries.filter(e => e.status === 'error').length,        color: '#f87171' },
-            { label: 'Agents Run',    value: new Set(entries.map(e => e.agent_name)).size,            color: '#c084fc' },
+            { label: 'Total Actions', value: entries.length,                                         color: '#38bdf8' },
+            { label: 'Successful',    value: entries.filter(e => e.status === 'success').length,     color: '#4ade80' },
+            { label: 'Errors',        value: entries.filter(e => e.status === 'error').length,       color: '#f87171' },
+            { label: 'Agents Run',    value: new Set(entries.map(e => e.agent_name)).size,           color: '#c084fc' },
           ].map(s => (
             <div key={s.label} style={{
               background: 'var(--bg-card)',
@@ -61,7 +73,6 @@ export default function AuditPage() {
         </div>
       )}
 
-      {/* Table */}
       <div style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
@@ -72,13 +83,19 @@ export default function AuditPage() {
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
             Loading audit trail...
           </div>
+        ) : error ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: '#f87171', fontFamily: 'DM Sans' }}>
+            {error}
+          </div>
         ) : entries.length === 0 ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>📋</div>
             <p style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
               No audit entries yet
             </p>
-            <p style={{ fontSize: '0.875rem' }}>Analyze a meeting to see the full agent pipeline log</p>
+            <p style={{ fontSize: '0.875rem' }}>
+              The admin needs to analyze a meeting first to generate the audit log.
+            </p>
           </div>
         ) : (
           <AuditTable entries={entries} />

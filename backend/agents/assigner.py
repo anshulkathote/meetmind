@@ -30,7 +30,6 @@ Output format:
 }}
 """
 
-
 def _update_assignments_sync(refined: dict, tasks: list[Task]) -> list[Task]:
     conn = sqlite3.connect(DB_PATH)
     for task in tasks:
@@ -47,14 +46,12 @@ def _update_assignments_sync(refined: dict, tasks: list[Task]) -> list[Task]:
     conn.close()
     return tasks
 
-
 async def run_assigner(
     tasks: list[Task],
-    attendees: list[str]
+    attendees: list[str],
+    workspace_id: int = 1
 ) -> tuple[list[Task], AuditEntry]:
-
     today = date.today().isoformat()
-
     audit = AuditEntry(
         agent_name    = "AssignerAgent",
         action        = "refine_assignments",
@@ -62,44 +59,27 @@ async def run_assigner(
         output_summary= "",
         status        = "success"
     )
-
     if not tasks:
         audit.output_summary = "No tasks to assign"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return tasks, audit
-
     try:
         tasks_json = json.dumps([
-            {
-                "id"      : t.id,
-                "title"   : t.title,
-                "owner"   : t.owner,
-                "deadline": t.deadline,
-                "priority": t.priority
-            }
+            {"id": t.id, "title": t.title, "owner": t.owner,
+             "deadline": t.deadline, "priority": t.priority}
             for t in tasks
         ])
-
-        user_content = (
-            f"ATTENDEES: {', '.join(attendees)}\n\n"
-            f"TASKS:\n{tasks_json}"
-        )
-
+        user_content = f"ATTENDEES: {', '.join(attendees)}\n\nTASKS:\n{tasks_json}"
         raw     = await call_llm(ASSIGNER_PROMPT.format(today=today), user_content)
         data    = json.loads(raw)
         refined = {t["id"]: t for t in data.get("tasks", [])}
-
-        loop  = asyncio.get_event_loop()
-        tasks = await loop.run_in_executor(
-            None, _update_assignments_sync, refined, tasks
-        )
-
+        loop    = asyncio.get_event_loop()
+        tasks   = await loop.run_in_executor(None, _update_assignments_sync, refined, tasks)
         audit.output_summary = f"Refined {len(refined)} task assignments"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return tasks, audit
-
     except Exception as e:
         audit.status         = "error"
         audit.output_summary = f"Error: {str(e)}"
-        await insert_audit(audit)
+        await insert_audit(audit, workspace_id)
         return tasks, audit

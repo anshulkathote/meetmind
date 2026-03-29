@@ -1,4 +1,7 @@
 import { useMeeting } from '../context/MeetingContext'
+import { useWorkspace } from '../context/WorkspaceContext'
+import { getTasks, getDependencies } from '../api/client'
+import { useEffect, useState } from 'react'
 import DependencyGraph from '../components/DependencyGraph'
 
 const LEGEND = [
@@ -10,14 +13,48 @@ const LEGEND = [
 
 export default function DependencyPage() {
   const { analysisResult } = useMeeting()
+  const { workspace } = useWorkspace()
+  const [tasks,        setTasks]        = useState([])
+  const [dependencies, setDependencies] = useState([])
+  const [loading,      setLoading]      = useState(true)
+  const [error,        setError]        = useState(null)
 
-  const tasks        = analysisResult?.tasks        || []
-  const dependencies = analysisResult?.dependencies || []
+  useEffect(() => {
+    // Admin: use fresh in-memory result immediately, no API call needed
+    if (analysisResult?.tasks?.length > 0) {
+      setTasks(analysisResult.tasks)
+      setDependencies(analysisResult.dependencies || [])
+      setLoading(false)
+      return
+    }
+
+    // Wait for workspace to be loaded from localStorage before fetching
+    // (workspace is null on first render, populated by WorkspaceContext useEffect)
+    if (!workspace?.id) return
+
+    async function load() {
+      setLoading(true)
+      setError(null)
+      try {
+        const [taskRes, depRes] = await Promise.all([
+          getTasks(workspace.id),
+          getDependencies(workspace.id),
+        ])
+        setTasks(taskRes.data || [])
+        setDependencies(depRes.data || [])
+      } catch {
+        setError('Could not load dependency data. Make sure the backend is running.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [analysisResult, workspace?.id])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)' }}>
 
-      {/* Header Bar */}
+      {/* Header Bar — identical to original */}
       <div style={{
         padding: '1.25rem 2rem',
         borderBottom: '1px solid var(--border)',
@@ -35,8 +72,6 @@ export default function DependencyPage() {
             {tasks.length} tasks · {dependencies.length} dependencies · drag to rearrange
           </p>
         </div>
-
-        {/* Legend */}
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           {LEGEND.map(l => (
             <div key={l.status} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -47,13 +82,18 @@ export default function DependencyPage() {
         </div>
       </div>
 
-      {/* Graph or Empty State */}
-      {tasks.length === 0 ? (
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          color: 'var(--text-muted)', fontFamily: 'DM Sans',
-        }}>
+      {/* Body — same empty states as original, plus loading/error for member fetch */}
+      {loading ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
+          Loading dependency graph...
+        </div>
+      ) : error ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#f87171', fontFamily: 'DM Sans' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>⚠️</div>
+          <p style={{ fontSize: '0.875rem' }}>{error}</p>
+        </div>
+      ) : tasks.length === 0 ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🕸️</div>
           <p style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
             No dependency data yet
@@ -61,11 +101,7 @@ export default function DependencyPage() {
           <p style={{ fontSize: '0.875rem' }}>Analyze a meeting first to see the graph</p>
         </div>
       ) : dependencies.length === 0 ? (
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          color: 'var(--text-muted)', fontFamily: 'DM Sans',
-        }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontFamily: 'DM Sans' }}>
           <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>✅</div>
           <p style={{ fontFamily: 'Syne', fontWeight: 700, fontSize: '1.1rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
             No dependencies found
@@ -77,7 +113,6 @@ export default function DependencyPage() {
           <DependencyGraph tasks={tasks} dependencies={dependencies} />
         </div>
       )}
-
     </div>
   )
 }
