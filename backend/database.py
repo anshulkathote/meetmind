@@ -217,3 +217,18 @@ def _get_audit_log_sync() -> list:
 async def get_audit_log() -> list:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(None, _get_audit_log_sync)
+
+
+def _clear_all_sync():
+    """Wipes all tables before a fresh analysis run."""
+    conn = _get_conn()
+    conn.execute("DELETE FROM tasks")
+    conn.execute("DELETE FROM alerts")
+    conn.execute("DELETE FROM audit_log")
+    conn.commit()
+    conn.close()
+
+
+async def clear_all():
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _clear_all_sync)

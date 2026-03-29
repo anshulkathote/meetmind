@@ -11,7 +11,7 @@ from .models import (
     DependencyEdge,
     MeetingSummary,
 )
-from .database import init_db, get_all_tasks
+from .database import init_db, get_all_tasks, clear_all
 from .agents.parser     import run_parser
 from .agents.sentiment  import run_sentiment
 from .agents.assigner   import run_assigner
@@ -100,6 +100,7 @@ class Orchestrator:
 
     async def run(self, req: AnalyzeRequest) -> AnalyzeResponse:
         await init_db()
+        await clear_all()
 
         all_audit: list[AuditEntry] = []
 
